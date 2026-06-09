@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { Line, LineChart, ResponsiveContainer } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { format, parseISO } from "date-fns";
+import { useEffect, useState } from "react";
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import { z } from "zod";
 
 const SERVER_ID = "2272069";
@@ -18,38 +24,24 @@ const ResponseSchema = z.object({
   data: z.array(DataPointSchema),
 });
 
-function fmtDay(ts: string) {
-  return new Date(ts).toISOString().slice(0, 10);
-}
-
-function fmtHour(ts: string) {
-  return new Date(ts).toISOString().slice(11, 13);
-}
-
-const DAY_COLORS = Array.from({ length: 7 }, (_, i) => {
-  const hue = (i * 360) / 7;
-  const rgb = hslToRgb(hue, 100, 50);
-  return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+const DateStringSchema = z.string().refine((val) => !isNaN(Date.parse(val)), {
+  message: "Invalid date string",
 });
 
-function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-  h /= 360;
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h * 12) % 12;
-    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-  };
-  return [
-    Math.round(f(0) * 255),
-    Math.round(f(8) * 255),
-    Math.round(f(4) * 255),
-  ];
-}
+const DAY_COLORS: Record<string, string> = {
+  Mon: "hsl(0, 100%, 50%)",
+  Tue: "hsl(51, 100%, 50%)",
+  Wed: "hsl(103, 100%, 50%)",
+  Thu: "hsl(154, 100%, 50%)",
+  Fri: "hsl(206, 100%, 50%)",
+  Sat: "hsl(257, 100%, 50%)",
+  Sun: "hsl(309, 100%, 50%)",
+};
 
 export default function App() {
-  const [chartData, setChartData] = useState<Record<string, unknown>[]>([]);
+  const [chartData, setChartData] = useState<Record<string, number | string>[]>(
+    [],
+  );
   const [days, setDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,21 +56,38 @@ export default function App() {
       .then((json) => {
         const parsed = ResponseSchema.parse(json);
 
-        const grouped: Record<string, Record<string, number>> = {};
+        const grouped: Record<
+          string,
+          Record<string, { value: number; min: number; max: number }>
+        > = {};
         for (const d of parsed.data) {
-          const day = fmtDay(d.attributes.timestamp);
-          const hour = fmtHour(d.attributes.timestamp);
-          (grouped[day] ??= {})[hour] = d.attributes.value;
+          const day = format(parseISO(d.attributes.timestamp), "yyyy-MM-dd");
+          const hour = format(parseISO(d.attributes.timestamp), "HH");
+          (grouped[day] ??= {})[hour] = {
+            value: d.attributes.value,
+            min: d.attributes.min,
+            max: d.attributes.max,
+          };
         }
 
         const sortedDays = Object.keys(grouped).sort().slice(1, 29);
         setDays(sortedDays);
 
-        const rows = Array.from({ length: 24 }, (_, hour) => {
-          const hh = String(hour).padStart(2, "0");
-          const row: Record<string, unknown> = { hour: hh };
+        // Create hours array starting from 8 AM
+        const hours = Array.from({ length: 24 }, (_, i) => {
+          const hour = (i + 8) % 24;
+          return String(hour).padStart(2, "0");
+        });
+
+        const rows = hours.map((hh) => {
+          const row: Record<string, number | string> = { hour: hh };
           for (const day of sortedDays) {
-            row[day] = grouped[day]?.[hh] ?? null;
+            const dataPoint = grouped[day]?.[hh];
+            if (dataPoint) {
+              row[day] = dataPoint.value;
+              row[`${day}_min`] = dataPoint.min;
+              row[`${day}_max`] = dataPoint.max;
+            }
           }
           return row;
         });
@@ -94,49 +103,121 @@ export default function App() {
 
   if (loading || error) return null;
 
-  // Warning: The width(-1) and height(-1) of chart should be greater than 0
-  // Note: "overflow-hidden" used to avoid HTML element overflow bug
+  const weekdayGroups: Record<string, string[]> = {};
+  const chartConfig: Record<string, { label: string; color: string }> = {};
+
+  for (const day of days) {
+    const weekday = format(parseISO(day), "EEE");
+    (weekdayGroups[weekday] ??= []).push(day);
+
+    chartConfig[day] = {
+      label: day,
+      color: DAY_COLORS[weekday],
+    };
+  }
+
+  const weekdayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
   return (
-    <div
-      className="bg-background grid h-screen w-screen scheme-dark overflow-hidden"
-      style={{
-        gridTemplateColumns: "auto repeat(7, 1fr)",
-        gridTemplateRows: "auto repeat(4, 1fr)",
-      }}
-    >
-      <div />
-      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-        <div
-          key={d}
-          className="flex items-end justify-center text-xs text-muted-foreground"
-        >
-          {d}
-        </div>
-      ))}
-      {Array.from({ length: 4 }, (_, row) => (
-        <React.Fragment key={row}>
-          <div className="flex items-center justify-end text-xs text-muted-foreground">
-            W{row + 1}
-          </div>
-          {days.slice(row * 7, row * 7 + 7).map((day) => (
-            <ResponsiveContainer className="size-full" key={day}>
-              <LineChart
-                data={chartData}
-                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-              >
-                <Line
-                  dataKey={day}
-                  stroke={DAY_COLORS[new Date(day).getUTCDay()]}
-                  dot={false}
-                  strokeWidth={1.5}
-                  connectNulls
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ))}
-        </React.Fragment>
-      ))}
+    <div className="flex flex-col h-screen w-screen overflow-hidden">
+      {weekdayOrder.map((weekday) => {
+        const weekDays = weekdayGroups[weekday] || [];
+
+        return (
+          <ChartContainer
+            key={weekday}
+            config={chartConfig}
+            className="size-full aspect-auto"
+          >
+            <LineChart
+              data={chartData}
+              margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#666"
+                strokeOpacity={0.5}
+                strokeWidth={0.5}
+                horizontal={false}
+              />
+              <XAxis dataKey="hour" hide />
+              {weekDays.map((day, index) => (
+                <>
+                  <Line
+                    key={`${day}_min`}
+                    dataKey={`${day}_min`}
+                    name={`${day}_min`}
+                    stroke={`var(--color-${day})`}
+                    dot={false}
+                    strokeWidth={0.5}
+                    strokeDasharray="2 2"
+                    connectNulls
+                    isAnimationActive={false}
+                    opacity={0.2 + index * 0.1}
+                    legendType="none"
+                    tooltipType="none"
+                  />
+                  <Line
+                    key={day}
+                    dataKey={day}
+                    name={day}
+                    stroke={`var(--color-${day})`}
+                    dot={false}
+                    strokeWidth={1.5}
+                    connectNulls
+                    isAnimationActive={false}
+                    opacity={0.5 + index * 0.15}
+                  />
+                  <Line
+                    key={`${day}_max`}
+                    dataKey={`${day}_max`}
+                    name={`${day}_max`}
+                    stroke={`var(--color-${day})`}
+                    dot={false}
+                    strokeWidth={0.5}
+                    strokeDasharray="2 2"
+                    connectNulls
+                    isAnimationActive={false}
+                    opacity={0.2 + index * 0.1}
+                    legendType="none"
+                    tooltipType="none"
+                  />
+                </>
+              ))}
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(label) => `${label}:00`}
+                    formatter={(value, name, item) => {
+                      const nameStr = String(name);
+                      const parsed = DateStringSchema.safeParse(nameStr);
+                      const min = item.payload[`${nameStr}_min`];
+                      const max = item.payload[`${nameStr}_max`];
+                      
+                      return (
+                        <div className="flex items-center justify-between gap-4 w-full">
+                          <span className="text-muted-foreground">
+                            {parsed.success ? format(parsed.data, "MMM d") : nameStr}
+                          </span>
+                          <span className="font-medium tabular-nums">
+                            {value}
+                            {(min !== undefined && max !== undefined) && (
+                              <span className="text-muted-foreground text-xs ml-1">
+                                ({min}–{max})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    }}
+                  />
+                }
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ChartContainer>
+        );
+      })}
     </div>
   );
 }
