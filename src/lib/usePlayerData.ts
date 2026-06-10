@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 
 const SERVER_URL = `${BATTLEMETRICS_BASE_URL}/servers/${SERVER_ID}/player-count-history`;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const DAY_MS = 1000 * 60 * 60 * 24;
+const HOUR_MS = 1000 * 60 * 60;
+const DAY_MS = HOUR_MS * 24;
 
 export default function usePlayerData() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["player-data"],
     queryFn: fetchPlayerData,
     select: (data) => CacheSchema.parse(data),
-    staleTime: DAY_MS,
+    staleTime: HOUR_MS,
     gcTime: DAY_MS,
   });
 
