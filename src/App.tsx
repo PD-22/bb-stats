@@ -4,11 +4,13 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
 import { getDayColor, parseToWeekday } from "@/lib/const";
 import usePlayerData from "@/lib/usePlayerData";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { map } from "lodash";
 import fromPairs from "lodash/fromPairs";
 import groupBy from "lodash/groupBy";
 import { AlertCircle } from "lucide-react";
-import { CartesianGrid, LineChart, XAxis } from "recharts";
+import { CartesianGrid, LineChart, ReferenceLine, XAxis } from "recharts";
 
 export default function App() {
   const { chartData, days, loading, error } = usePlayerData();
@@ -23,6 +25,8 @@ export default function App() {
     ]),
   );
 
+  const todayWeekday = parseToWeekday(format(new Date(), "yyyy-MM-dd"));
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden items-center justify-center">
       {error ? (
@@ -30,11 +34,13 @@ export default function App() {
       ) : loading ? (
         <Spinner className="size-8 text-muted-foreground" />
       ) : (
-        map(groupBy(days, parseToWeekday), (weekDays, weekday) => (
+        map(groupBy(days, parseToWeekday), (weekDays, weekday) => {
+          const isToday = weekday === todayWeekday;
+        return (
           <ChartContainer
             key={weekday}
             config={chartConfig}
-            className="size-full aspect-auto"
+            className={cn("size-full aspect-auto", isToday && "bg-muted/30")}
           >
             <LineChart
               data={chartData}
@@ -51,13 +57,19 @@ export default function App() {
               {map(weekDays, (day, index) => (
                 <DayLines key={day} day={day} index={index} />
               ))}
+              <ReferenceLine
+                x={String(new Date().getHours()).padStart(2, "0")}
+                stroke="white"
+                strokeWidth={1}
+              />
               <ChartTooltip
                 content={<PlayerTooltip />}
                 isAnimationActive={false}
               />
             </LineChart>
           </ChartContainer>
-        ))
+        );
+        })
       )}
     </div>
   );
