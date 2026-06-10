@@ -1,6 +1,7 @@
 import { format, parseISO } from "date-fns";
 import { z } from "zod";
 
+export const BATTLEMETRICS_BASE_URL = "https://api.battlemetrics.com";
 export const SERVER_ID = "2272069";
 
 export const DataPointSchema = z.object({
@@ -59,3 +60,8 @@ export const weekdaySchema = z.enum([
 
 export const parseToWeekday = (dateString: string) =>
   weekdaySchema.parse(format(parseISO(dateString), "EEE"));
+
+export const CacheSchema = z.object({
+  chartData: z.array(z.record(z.string(), z.union([z.number(), z.string()]))),
+  days: z.array(z.string()),
+});
