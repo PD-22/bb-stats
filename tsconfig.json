@@ -1,9 +1,13 @@
 {
   "compilerOptions": {
+    "target": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
     "paths": {
       "@/*": ["./src/*"]
     },
     "jsx": "react-jsx",
     "types": ["vite/client"]
-  }
+  },
+  "include": ["src"]
 }
