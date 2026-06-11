@@ -2,12 +2,11 @@ import DayLines from "@/components/day-lines";
 import PlayerTooltip from "@/components/player-tooltip";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
-import { getDayColor, parseToWeekday } from "@/lib/const";
+import { getDayColor, parseToWeekday, WEEKDAY_ORDER } from "@/lib/const";
 import usePlayerData from "@/lib/usePlayerData";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { map } from "lodash";
-import fromPairs from "lodash/fromPairs";
+import { fromPairs } from "lodash";
 import groupBy from "lodash/groupBy";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -38,6 +37,8 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
+  const groupedDays = groupBy(days, parseToWeekday);
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden items-center justify-center">
       {error ? (
@@ -45,7 +46,10 @@ export default function App() {
       ) : loading ? (
         <Spinner className="size-8 text-muted-foreground" />
       ) : (
-        map(groupBy(days, parseToWeekday), (weekDays, weekday) => {
+        WEEKDAY_ORDER.map((weekday) => {
+          const weekDays = groupedDays[weekday];
+          if (!weekDays) return null;
+
           const isToday = weekday === todayWeekday;
           return (
             <ChartContainer
@@ -65,7 +69,7 @@ export default function App() {
                   horizontal={false}
                 />
                 <XAxis dataKey="hour" hide />
-                {map(weekDays, (day, index) => (
+                {weekDays.map((day, index) => (
                   <DayLines key={day} day={day} index={index} />
                 ))}
                 <ReferenceLine
