@@ -10,7 +10,9 @@ import { fromPairs } from "lodash";
 import groupBy from "lodash/groupBy";
 import { AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { CartesianGrid, LineChart, ReferenceLine, XAxis } from "recharts";
+import { LineChart, ReferenceLine, XAxis } from "recharts";
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 
 export default function App() {
   const { chartData, days, loading, error } = usePlayerData();
@@ -55,20 +57,26 @@ export default function App() {
             <ChartContainer
               key={weekday}
               config={chartConfig}
-              className={cn("size-full aspect-auto", isToday && "bg-muted/30")}
+              className={cn(
+                "size-full aspect-auto",
+                isToday ? "bg-muted/30" : "opacity-90",
+              )}
             >
               <LineChart
                 data={chartData}
                 margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#666"
-                  strokeOpacity={0.5}
-                  strokeWidth={0.5}
-                  horizontal={false}
-                />
                 <XAxis dataKey="hour" hide />
+                {HOURS.map((hour) => (
+                  <ReferenceLine
+                    key={hour}
+                    x={hour}
+                    strokeDasharray="3 3"
+                    stroke="#666"
+                    strokeOpacity={isToday ? 1 : 0.5}
+                    strokeWidth={0.5}
+                  />
+                ))}
                 {weekDays.map((day, index) => (
                   <DayLines key={day} day={day} index={index} />
                 ))}
