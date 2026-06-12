@@ -4,15 +4,23 @@ import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
 import { getDayColor, parseToWeekday, WEEKDAY_ORDER } from "@/lib/const";
 import usePlayerData from "@/lib/usePlayerData";
-import { cn } from "@/lib/utils";
+import { cn, padHour } from "@/lib/utils";
 import { format } from "date-fns";
 import { fromPairs } from "lodash";
 import groupBy from "lodash/groupBy";
 import { AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LineChart, ReferenceLine, XAxis } from "recharts";
 
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const HOURS = Array.from({ length: 24 }, (_, i) => padHour(i));
+const getCurrentHour = () => padHour(new Date().getHours());
+
+function msUntilNextHour() {
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+  return nextHour.getTime() - now.getTime();
+}
 
 export default function App() {
   const { chartData, days, loading, error } = usePlayerData();
@@ -29,15 +37,19 @@ export default function App() {
 
   const todayWeekday = parseToWeekday(format(new Date(), "yyyy-MM-dd"));
 
-  const [currentHour, setCurrentHour] = useState(new Date().getHours());
+  const [currentHour, setCurrentHour] = useState(getCurrentHour);
+
+  const scheduleNextUpdate = useCallback(() => {
+    const delay = msUntilNextHour();
+    return setTimeout(() => {
+      setCurrentHour(getCurrentHour());
+    }, delay);
+  }, []);
 
   useEffect(() => {
-    const id = setInterval(
-      () => setCurrentHour(new Date().getHours()),
-      1000 * 60 * 60,
-    );
-    return () => clearInterval(id);
-  }, []);
+    const timeout = scheduleNextUpdate();
+    return () => clearTimeout(timeout);
+  }, [currentHour, scheduleNextUpdate]);
 
   const groupedDays = groupBy(days, parseToWeekday);
 
@@ -80,11 +92,7 @@ export default function App() {
                 {weekDays.map((day, index) => (
                   <DayLines key={day} day={day} index={index} />
                 ))}
-                <ReferenceLine
-                  x={String(currentHour).padStart(2, "0")}
-                  stroke="white"
-                  strokeWidth={1}
-                />
+                <ReferenceLine x={currentHour} stroke="white" strokeWidth={1} />
                 <ChartTooltip
                   content={<PlayerTooltip />}
                   isAnimationActive={false}

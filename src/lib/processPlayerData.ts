@@ -1,4 +1,5 @@
 import { ResponseSchema } from "@/lib/const";
+import { padHour } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 
 type ChartRow = Record<string, number | string>;
@@ -28,7 +29,7 @@ export function processPlayerData(json: unknown): PlayerData {
   const sortedDays = Object.keys(grouped).sort().slice(1, 29);
 
   const hours = Array.from({ length: 24 }, (_, i) =>
-    String((i + 8) % 24).padStart(2, "0"),
+    padHour((i + 8) % 24),
   );
 
   const chartData = hours.map((hh) => {
