@@ -71,7 +71,7 @@ export default function App() {
               config={chartConfig}
               className={cn(
                 "size-full aspect-auto",
-                isToday ? "bg-muted/30" : "opacity-90",
+                isToday ? "bg-muted/50" : "opacity-80",
               )}
             >
               <LineChart
@@ -85,7 +85,7 @@ export default function App() {
                     x={hour}
                     strokeDasharray="3 3"
                     stroke="#666"
-                    strokeOpacity={isToday ? 1 : 0.5}
+                    strokeOpacity={isToday ? 1 : 0.33}
                     strokeWidth={0.5}
                   />
                 ))}
