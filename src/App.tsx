@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { fromPairs } from "lodash";
 import groupBy from "lodash/groupBy";
 import { AlertCircle } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LineChart, ReferenceLine, XAxis } from "recharts";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => padHour(i));
@@ -39,17 +39,13 @@ export default function App() {
 
   const [currentHour, setCurrentHour] = useState(getCurrentHour);
 
-  const scheduleNextUpdate = useCallback(() => {
-    const delay = msUntilNextHour();
-    return setTimeout(() => {
-      setCurrentHour(getCurrentHour());
-    }, delay);
-  }, []);
-
   useEffect(() => {
-    const timeout = scheduleNextUpdate();
+    const timeout = setTimeout(
+      () => setCurrentHour(getCurrentHour()),
+      msUntilNextHour(),
+    );
     return () => clearTimeout(timeout);
-  }, [currentHour, scheduleNextUpdate]);
+  }, [currentHour]);
 
   const groupedDays = groupBy(days, parseToWeekday);
 
@@ -76,7 +72,7 @@ export default function App() {
             >
               <LineChart
                 data={chartData}
-                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+                margin={{ top: 0, right: 32, bottom: 0, left: 32 }}
               >
                 <XAxis dataKey="hour" hide />
                 {HOURS.map((hour) => (
@@ -92,7 +88,12 @@ export default function App() {
                 {weekDays.map((day, index) => (
                   <DayLines key={day} day={day} index={index} />
                 ))}
-                <ReferenceLine x={currentHour} stroke="white" strokeWidth={1} />
+                <ReferenceLine
+                  x={currentHour}
+                  stroke="white"
+                  strokeWidth={isToday ? 2 : 1}
+                  strokeOpacity={isToday ? 1 : 0.5}
+                />
                 <ChartTooltip
                   content={<PlayerTooltip />}
                   isAnimationActive={false}

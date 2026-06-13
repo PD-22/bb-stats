@@ -8,9 +8,7 @@ export const DataPointSchema = z.object({
   type: z.literal("dataPoint"),
   attributes: z.object({
     timestamp: z.string(),
-    min: z.number(),
     value: z.number(),
-    max: z.number(),
   }),
 });
 

@@ -8,13 +8,15 @@ const HOUR_MS = 1000 * 60 * 60;
 const DAY_MS = HOUR_MS * 24;
 
 export default function usePlayerData() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["player-data"],
     queryFn: fetchPlayerData,
     select: (data) => CacheSchema.parse(data),
     staleTime: HOUR_MS,
     gcTime: DAY_MS,
   });
+
+  if (error) console.error("fetch error:", error);
 
   return {
     chartData: data?.chartData ?? [],
